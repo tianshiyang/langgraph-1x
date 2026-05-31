@@ -1,0 +1,9 @@
+{
+  "$schema": "https://langgra.ph/schema.json",
+  "dependencies": ["."],
+  "graphs": {
+    "quickstart-agent": "./官方文档/快速开始/index.py:agent"
+  },
+  "env": ".env",
+  "python_version": "3.13"
+}

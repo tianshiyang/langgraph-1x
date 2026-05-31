@@ -1,7 +1,6 @@
 import operator
 from typing import Literal
 
-from IPython.display import Image, display
 from langchain_core.messages import AnyMessage, SystemMessage, ToolMessage, HumanMessage
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
@@ -124,6 +123,8 @@ agent_builder.add_edge("tool_node", "llm_call")
 agent = agent_builder.compile()
 
 if __name__ == "__main__":
+    from IPython.display import Image, display
+
     display(Image(agent.get_graph(xray=True).draw_mermaid_png()))
 
     messages = agent.invoke({"messages": [HumanMessage(content="Add 3 and 4.")]})
