@@ -3,7 +3,8 @@
   "dependencies": ["."],
   "graphs": {
     "quickstart-agent": "./官方文档/快速开始/index.py:agent",
-    "think_in_langgraph": "./官方文档/thinking_in_langgraph/index.py:app"
+    "think_in_langgraph": "./官方文档/thinking_in_langgraph/index.py:app",
+    "overwrite_langgraph": "./官方文档/use_graph_api/overwrite.py:graph"
   },
   "env": ".env",
   "python_version": "3.13"
