@@ -4,7 +4,8 @@
   "graphs": {
     "quickstart-agent": "./官方文档/快速开始/index.py:agent",
     "think_in_langgraph": "./官方文档/thinking_in_langgraph/index.py:app",
-    "overwrite_langgraph": "./官方文档/use_graph_api/overwrite.py:graph"
+    "overwrite_langgraph": "./官方文档/use_graph_api/overwrite.py:graph",
+    "persistence": "./官方文档/核心能力/持久化.py:graph"
   },
   "env": ".env",
   "python_version": "3.13"
