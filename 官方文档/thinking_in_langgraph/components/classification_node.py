@@ -1,7 +1,7 @@
 from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 
-from llms import glm_model
+from provider import glm_model
 from .state import EmailAgentState, EmailClassification
 
 

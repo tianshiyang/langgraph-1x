@@ -2,7 +2,7 @@ from langchain_core.callbacks import UsageMetadataCallbackHandler
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
-from llms import glm_model
+from provider import glm_model
 
 if __name__ == "__main__":
     callback = UsageMetadataCallbackHandler()

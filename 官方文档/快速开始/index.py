@@ -7,7 +7,7 @@ from langgraph.graph import StateGraph
 from typing_extensions import TypedDict, Annotated
 from langchain_core.tools import tool
 
-from llms import glm_model
+from provider import glm_model
 
 
 @tool

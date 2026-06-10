@@ -3,7 +3,7 @@ from typing import Literal
 from langgraph.constants import END
 from langgraph.types import Command, interrupt
 
-from llms import glm_model
+from provider import glm_model
 from 官方文档.thinking_in_langgraph.components.state import EmailAgentState
 
 
