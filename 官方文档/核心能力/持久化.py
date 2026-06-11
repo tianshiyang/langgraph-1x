@@ -162,11 +162,23 @@ def demo_state_ops(graph):
     if before_b:
         cp_id = before_b.config["configurable"]["checkpoint_id"]
         print(f"\n=== 02c. 从 checkpoint {cp_id[:8]}... 回放 ===")
-        # ⭐️ 传入 checkpoint_id → 之前的节点不重跑，之后的重新执行
-        replay_config = {
+        # ⭐️ 回放（Replay）原理：config 里同时给 thread_id + checkpoint_id，
+        #    图就从该 checkpoint 加载状态，并从它之后继续执行：
+        #      - checkpoint_id 之前的节点：不重跑，直接复用已保存的输出
+        #      - checkpoint_id 之后的节点：重新执行
+        #    input 传 None 表示不提供新输入，纯按已保存状态续跑。
+        replay_config: RunnableConfig = {
             "configurable": {"thread_id": "4", "checkpoint_id": cp_id}
         }
-        result = graph.invoke(None, replay_config)
+        # ⚠️ 易错点：invoke() 没有 replay_config 这个参数！
+        #    回放就是把带 checkpoint_id 的 config 当成普通 config 传进去。
+        #    ✅ graph.invoke(None, replay_config)                # 位置参数 = config
+        #    ✅ graph.invoke(None, config=replay_config)         # 关键字写 config=
+        #    ❌ graph.invoke(None, replay_config=replay_config)  # 没这个参数，
+        #       会被 **kwargs 吞掉，真正的 config 仍是 None，于是报错：
+        #       ValueError: Checkpointer requires one or more of the following
+        #       'configurable' keys: thread_id, checkpoint_ns, checkpoint_id
+        result = graph.invoke(None, config=replay_config)
         print(f"回放结果: {result}")
 
     # ── 2d. 查找特定 checkpoint ──
