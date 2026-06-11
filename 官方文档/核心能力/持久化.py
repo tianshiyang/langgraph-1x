@@ -42,7 +42,8 @@ from langgraph.store.memory import InMemoryStore
 from typing_extensions import TypedDict, Annotated
 
 # 加载 .env（千问 API Key、PostgreSQL 连接串等）
-load_dotenv(Path(__file__).parent / ".env")
+# ⭐️ .env 在项目根目录，统一管理所有配置
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 
 # ═════════════════════════════════════════════
