@@ -26,6 +26,25 @@ LangGraph 持久化 (Persistence) — 完整教程
 参考文档：
   - https://docs.langchain.com/oss/python/langgraph/persistence
   - https://docs.langchain.com/oss/python/langgraph/add-memory
+
+──────────────────────────────────────────────────────────────────
+⭐️ 企业实战优先级图例（每个小节标题都标了等级）：
+
+  ⭐️⭐️⭐️ 企业核心：几乎每个有状态的 Agent 项目都要用，必须吃透
+  ⭐️⭐️   企业常用：重要认知或选型决策，要懂但不一定天天写
+  ⭐️     了解即可：企业里几乎用不到（多为 demo / 调试 / 被自建方案替代）
+
+各小节速查：
+  01 Checkpoint 基础 ............ ⭐️⭐️⭐️  有状态图的地基
+  02 State 操作 ................. ⭐️⭐️    get/update 常用；replay/查找 了解
+  03 短期记忆（多轮 + 消息管理） ... ⭐️⭐️⭐️  对话类产品命脉
+  04 Store 基础（InMemoryStore） .. ⭐️      仅 demo，生产不用内存 Store
+  05 Graph + Store ............... ⭐️⭐️    跨 thread 记忆的概念要懂
+  06 语义搜索（内存向量） .......... ⭐️      生产走专用向量库，这里只是体验
+  07 PostgreSQL 实战 ............. ⭐️⭐️⭐️  生产 checkpointer + 对话落库
+  08 PostgresStore vs 自建表 ..... ⭐️⭐️    长期记忆选型，决策认知
+  09 Durability + Checkpointer 选型 ⭐️⭐️   上线前要做的两个选择
+──────────────────────────────────────────────────────────────────
 """
 
 import os
@@ -47,7 +66,7 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 
 # ═════════════════════════════════════════════
-# 01. Checkpoint 基础
+# 01. Checkpoint 基础          【⭐️⭐️⭐️ 企业核心】
 # ═════════════════════════════════════════════
 
 class State(TypedDict):
@@ -110,7 +129,9 @@ def demo_checkpoint():
 
 
 # ═════════════════════════════════════════════
-# 02. State 操作（查看 / 历史 / 修改 / 回放）
+# 02. State 操作（查看 / 历史 / 修改 / 回放）  【⭐️⭐️ 企业常用】
+#     2a 查看 / 2b 修改 = ⭐️⭐️常用（调试、人工干预）
+#     2c 回放 / 2d 查找 = ⭐️了解（多为调试场景，生产很少主动调）
 # ═════════════════════════════════════════════
 
 def demo_state_ops(graph):
@@ -197,7 +218,7 @@ def demo_state_ops(graph):
 
 
 # ═════════════════════════════════════════════
-# 03. 短期记忆（同一 Thread 多轮对话 + 消息管理）
+# 03. 短期记忆（同一 Thread 多轮对话 + 消息管理）  【⭐️⭐️⭐️ 企业核心】
 # ═════════════════════════════════════════════
 
 def demo_short_term_memory():
@@ -246,7 +267,9 @@ def demo_short_term_memory():
 
 
 # ═════════════════════════════════════════════
-# 04. Store 基础（跨 Thread 共享数据）
+# 04. Store 基础（跨 Thread 共享数据）  【⭐️ 了解即可】
+#     InMemoryStore 仅用于 demo/测试，企业生产几乎不用内存 Store。
+#     概念（namespace/put/search）要懂，API 细节不必死记。
 # ═════════════════════════════════════════════
 
 def demo_store_basic():
@@ -305,7 +328,9 @@ def demo_store_basic():
 
 
 # ═════════════════════════════════════════════
-# 05. Graph 中使用 Checkpointer + Store
+# 05. Graph 中使用 Checkpointer + Store  【⭐️⭐️ 企业常用】
+#     "跨 thread 长期记忆"这个概念企业一定会遇到；
+#     但具体存储常用自建表替代（见 08），这里重在理解机制。
 # ═════════════════════════════════════════════
 
 def demo_graph_with_store():
@@ -365,7 +390,9 @@ def demo_graph_with_store():
 
 
 # ═════════════════════════════════════════════
-# 06. 语义搜索（千问 Embedding）
+# 06. 语义搜索（千问 Embedding）  【⭐️ 了解即可】
+#     "记忆要按语义检索"的思想很重要，但企业生产走专用向量库
+#     （pgvector / Milvus / 等），不靠 InMemoryStore 的内置索引。
 # ═════════════════════════════════════════════
 
 def demo_semantic_search():
@@ -427,7 +454,7 @@ def demo_semantic_search():
 
 
 # ═════════════════════════════════════════════
-# 07. 生产环境：PostgreSQL 实战
+# 07. 生产环境：PostgreSQL 实战  【⭐️⭐️⭐️ 企业核心】
 # ═════════════════════════════════════════════
 
 def demo_postgres():
@@ -521,7 +548,7 @@ def demo_postgres():
 
 
 # ═════════════════════════════════════════════
-# 08. 生产环境：PostgresStore vs 自己建表
+# 08. 生产环境：PostgresStore vs 自己建表  【⭐️⭐️ 企业常用】
 # ═════════════════════════════════════════════
 
 def demo_production_memory():
@@ -574,7 +601,7 @@ def demo_production_memory():
 
 
 # ═════════════════════════════════════════════
-# 09. Durability 模式 + Checkpointer 选型
+# 09. Durability 模式 + Checkpointer 选型  【⭐️⭐️ 企业常用】
 # ═════════════════════════════════════════════
 
 def demo_misc():
@@ -609,27 +636,28 @@ def demo_misc():
 
 def practice_guide():
     """
-    ⭐️ 练习优先级：
+    ⭐️ 按"企业实战优先级"排（不是按章节顺序）：
 
-    ✅ 必练（跟着写一遍）：
-       - 01. Checkpoint 基础：理解 super-step 和 reducer，看 checkpoint 产生过程
-       - 02. State 操作：get_state / update_state / replay 实际跑一遍
-       - 03. 短期记忆：多轮对话的消息累加效果，必须亲手 invoke 两轮看结果
-       - 05. Graph + Store：节点内读写 store，跨 thread 共享记忆
+    ⭐️⭐️⭐️ 企业核心（必吃透，几乎每个项目都用）：
+       - 01. Checkpoint 基础：super-step、reducer、自动快照——有状态图的地基
+       - 03. 短期记忆：多轮对话消息累加 + trim/摘要管理——对话类产品命脉
+       - 07. PostgreSQL 实战：PostgresSaver 做生产 checkpointer + 对话自己落库
 
-    🔶 建议练（加深理解）：
-       - 04. Store 基础：namespace 前缀匹配、分页，手写几个 put/search
-       - 06. 语义搜索：配置千问 embedding，体验 query 搜索效果
-       - 07. PostgreSQL：用 Docker 跑 PostgresSaver，体会和 InMemorySaver 的区别
+    ⭐️⭐️ 企业常用（要懂，偏认知/选型，不一定天天手写）：
+       - 02. State 操作：get_state/get_state_history（调试监控）、update_state（人工干预）
+       - 05. Graph + Store：理解"跨 thread 长期记忆"机制
+       - 08. 记忆方案选型：PostgresStore vs 自建表，知道什么时候该自建
+       - 09. Durability + Checkpointer 选型：上线前的两个选择题
 
-    🔹 了解即可（不需要手写）：
-       - 08. 生产方案选择：理解两种方案的适用场景
-       - 09. Durability 模式：知道三种级别的区别就行
+    ⭐️ 了解即可（企业几乎用不到，多为 demo / 调试 / 被自建替代）：
+       - 02c/02d. 回放与查找 checkpoint：调试场景，生产很少主动调
+       - 04. Store 基础（InMemoryStore）：仅 demo，生产不用内存 Store
+       - 06. 语义搜索（内存向量）：生产走专用向量库，这里只为体验"按语义检索"
     """
-    print("\n=== 10. 动手练习指南 ===")
-    print("✅ 必练: 01 Checkpoint -> 02 State操作 -> 03 短期记忆 -> 05 Graph+Store")
-    print("🔶 建议: 04 Store基础 -> 06 语义搜索 -> 07 PostgreSQL")
-    print("🔹 了解: 08 生产方案 -> 09 Durability")
+    print("\n=== 10. 学习路线（按企业优先级）===")
+    print("⭐️⭐️⭐️ 核心: 01 Checkpoint -> 03 短期记忆 -> 07 PostgreSQL")
+    print("⭐️⭐️   常用: 02 State操作 -> 05 Graph+Store -> 08 记忆选型 -> 09 选型")
+    print("⭐️     了解: 02c/d 回放查找 -> 04 内存Store -> 06 内存语义搜索")
 
 
 # ═════════════════════════════════════════════
