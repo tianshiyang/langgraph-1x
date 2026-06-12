@@ -8,5 +8,6 @@ dependencies = [
     "langchain-core>=1.4",
     "langgraph>=1.2",
     "langgraph-cli[inmem]>=0.4",
+    "socksio>=1.0",  # httpx 走 SOCKS 代理(VPN)所需，否则调用模型报 ImportError
     "typing-extensions>=4.15",
 ]
