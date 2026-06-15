@@ -80,7 +80,8 @@ LangGraph 流式输出 (Streaming) — 完整教程
   06 控制哪些 token 流出去 .......... ⭐️⭐️⭐️  node过滤/tags过滤/禁流式，多LLM必用
   07 异步 + 子图 + 其它 stream_mode . ⭐️      astream/subgraphs/checkpoints/tasks/debug
   08 实战：流式 RAG 知识库问答助手 ... ⭐️⭐️⭐️  embedding 检索 + LLM 流式 + 进度
-  09 学习路线
+  09 结构化 vs 文本 两条路对照 ...... ⭐️⭐️⭐️  破解「token流里怎么拿完整JSON」之惑
+  10 学习路线
 ──────────────────────────────────────────────────────────────────
 """
 
@@ -631,7 +632,130 @@ def demo_rag_streaming():
 
 
 # ═════════════════════════════════════════════
-# 09. 学习路线
+# 09. 「结构化数据 vs 文本」两条路对照  【⭐️⭐️⭐️ 企业核心 · 认知澄清】
+# ═════════════════════════════════════════════
+#
+# ⭐️ 这一节专治一个最常见、最绕的困惑：
+#    「LLM 一个个 token 往外吐，那我程序里怎么拿到完整的 JSON / 检索结果？
+#      前端又怎么展示一个【完整的列表】，而不是一个个字蹦出来？」
+#
+# 一句话解药：
+#   ★ 流式（token 逐个吐）只是「推给前端看」的一条【旁路】，
+#     它和「程序内部拿到完整值」是【两条互不影响的路】。你之所以纠结，是把它俩当成一条了。★
+#
+#   ┌─ 路 A【程序逻辑】：节点内 invoke() + state 传递 → 永远是【完整值】，流式动不了它
+#   │     · 哪怕外层开了 messages 流，节点里 `resp = model.invoke(...)` 依然是
+#   │       「等 LLM 全部生成完才返回」，resp.content 是完整字符串，不是半截。
+#   │     · 上一步把完整 JSON 存进 state，下一步 state["x"] 读出来就是完整 JSON。
+#   │
+#   └─ 路 B【推给前端】：按「数据是给人看的文本，还是给程序/前端用的结构」分两种——
+#         · 结构化数据（检索结果列表 / 步骤动作 / JSON）→ custom，writer(完整dict)，
+#                                                          【一次性完整到达】，绝不逐 token
+#         · 自然语言文本（LLM 回答）                    → messages，【逐 token】打字机
+#
+# ⚠️ 铁律：只有「LLM 生成的自然语言」才逐 token，而那是给人眼睛看的，前端拼起来显示即可，
+#    你的程序【根本不需要去解析它】。真正要程序解析的结构化数据，从来不走 token 流，
+#    所以「半截 JSON 怎么办」这个问题，在正确写法下【压根不会出现】。
+#
+# 下面这个 demo 在【同一次 stream()】里把两条路并排跑给你看：
+#   retrieve 节点用 custom 把「完整检索结果」一次性推出去（你会看到一整个列表瞬间到达）；
+#   generate 节点的回答用 messages 逐 token 蹦出来（打字机）。
+#   并且 generate 里会从 state 读上一步的结构化结果——证明它【完整、可直接遍历】。
+# ═════════════════════════════════════════════
+
+def demo_two_paths():
+    """
+    ⭐️ 对照演示：结构化数据(custom一次性) vs 文本(messages逐token)。
+       看完你就彻底不会再问「token 流里怎么拿完整 JSON」了。
+    """
+    print("\n=== 09. 「结构化数据 vs 文本」两条路对照 ===")
+
+    class S(TypedDict):
+        question: str
+        retrieved: dict      # ← 上一步产出的【结构化数据】(一个完整的 dict / JSON)
+        answer: str          # ← LLM 的文本回答
+
+    # ① retrieve：产出【结构化数据】
+    #    · 走【路 B / 结构化】：writer 把完整 dict 一次性推给前端（不是 token！）
+    #    · 走【路 A】：return 存进 state，原样完整地交给下一步
+    def retrieve(state: S) -> S:
+        writer = get_stream_writer()
+        writer({"type": "step", "action": "检索知识库", "status": "开始"})
+
+        # 简单按「问题里的字在文档中出现多少」打分取 top-2（假装检索）；
+        # 真实项目用 embeddings 余弦相似度（见第 08 节），这里聚焦流式写法。
+        hits = sorted(
+            KNOWLEDGE_BASE,
+            key=lambda doc: sum(ch in doc for ch in state["question"]),
+            reverse=True,
+        )[:2]
+        result = {"docs": hits, "count": len(hits)}   # ← 一个完整的结构化结果
+
+        # ⭐️ 结构化数据：一次性把【完整 dict】推给前端，前端直接拿去渲染整个列表
+        writer({"type": "retrieved", "data": result})
+        return {"retrieved": result}                  # ← 同时存进 state 给下一步用
+
+    # ② generate：消费上一步的结构化结果 + 产出【文本】
+    def generate(state: S) -> S:
+        # ⭐️ 路 A 的铁证：上一步的结构化结果在这里【完整】读出——
+        #    state["retrieved"] 是完整 dict，绝不是半截 JSON；流式从不影响它。
+        retrieved = state["retrieved"]
+        assert isinstance(retrieved["docs"], list)    # 完整、可直接索引/遍历/解析
+        context = "\n".join(f"- {d}" for d in retrieved["docs"])
+
+        # 文本回答走【路 B / 文本】：外层 messages 模式会把它逐 token 流出去
+        resp = glm_model.invoke([
+            SystemMessage(
+                "你是电商客服，只依据下面【知识库】用简洁口语化的一两句话回答。\n"
+                f"【知识库】\n{context}"
+            ),
+            HumanMessage(state["question"]),
+        ])
+        return {"answer": resp.content}               # resp.content 同样是完整值
+
+    graph = (
+        StateGraph(S)
+        .add_node("retrieve", retrieve)
+        .add_node("generate", generate)
+        .add_edge(START, "retrieve")
+        .add_edge("retrieve", "generate")
+        .add_edge("generate", END)
+        .compile()
+    )
+
+    question = "我买的东西不想要了，能退吗？"
+    print(f"   用户：{question}\n")
+
+    typed_prefix = False
+    for mode, chunk in graph.stream(
+        {"question": question, "retrieved": {}, "answer": ""},
+        stream_mode=["custom", "messages"],   # ⭐️ 结构化(custom) + 文本(messages) 一起要
+    ):
+        if mode == "custom":
+            # 结构化事件：到达即【完整】，前端按 type 渲染。注意它不是一个个字来的！
+            if chunk["type"] == "step":
+                print(f"   〔步骤〕{chunk['action']} … {chunk['status']}")
+            elif chunk["type"] == "retrieved":
+                data = chunk["data"]                  # ← 完整 dict，能直接遍历
+                print(f"   〔检索结果·一次性完整到达〕共 {data['count']} 条：")
+                for i, doc in enumerate(data["docs"], 1):
+                    print(f"        {i}. {doc}")
+        elif mode == "messages":
+            msg, meta = chunk
+            if meta.get("langgraph_node") == "generate":  # 只流最终回答的 token
+                if not typed_prefix:
+                    print("\n   客服(逐 token)：", end="", flush=True)
+                    typed_prefix = True
+                print(msg.content, end="", flush=True)   # ← 这才是逐 token 的那条路
+    print("\n")
+    print("   ── 对照总结 ──")
+    print("   · 检索结果(结构化) → custom，【一次到达就是完整列表】，前端直接渲染")
+    print("   · 回答(文本)       → messages，【逐 token 打字机】，前端拼起来显示即可")
+    print("   · 上一步的完整 JSON → 下一步从 state 读，【永远完整】，与流式无关")
+
+
+# ═════════════════════════════════════════════
+# 10. 学习路线
 # ═════════════════════════════════════════════
 
 def practice_guide():
@@ -646,6 +770,7 @@ def practice_guide():
        - 05 组合    ：stream_mode=[...] 一次拿到「进度 + token」，实战标配写法
        - 06 控制流出：node过滤 / tags过滤 / streaming=False——多 LLM 节点产品必用
        - 08 实战    ：把检索进度(custom) + 流式回答(messages) 串成 RAG 聊天骨架
+       - 09 两条路  ：结构化(custom一次性) vs 文本(messages逐token)——破解「token流怎么拿完整JSON」
 
     ⭐️⭐️ 企业常用（要懂，偏认知/技巧）：
        - 03 values：要每步「完整 state 全貌」时用；和 updates 的差量对比记忆
@@ -701,8 +826,8 @@ def practice_guide():
           再补 ③④ 健壮性，最后用 ⑤ 串起人机协作。
     ══════════════════════════════════════════════════════════════
     """
-    print("\n=== 09. 学习路线（按企业优先级）===")
-    print("⭐️⭐️⭐️ 核心: 01 messages -> 02 updates -> 04 custom -> 05 组合 -> 06 控制流出 -> 08 实战")
+    print("\n=== 10. 学习路线（按企业优先级）===")
+    print("⭐️⭐️⭐️ 核心: 01 messages -> 02 updates -> 04 custom -> 05 组合 -> 06 控制流出 -> 08 实战 -> 09 两条路对照")
     print("⭐️⭐️   常用: 03 values（完整快照）")
     print("⭐️     了解: 07 异步/子图/底层模式")
     print("⭐️     联动: 流式 + interrupt/checkpointer（见 持久化.py / 容错.py）")
@@ -727,5 +852,7 @@ if __name__ == "__main__":
 
     # —— 实战：额外需要 阿里 DashScope embedding Key ——
     demo_rag_streaming()        # 08 ⭐️⭐️⭐️
+
+    demo_two_paths()            # 09 ⭐️⭐️⭐️（结构化 vs 文本 两条路对照，认知澄清）
 
     practice_guide()            # 10
