@@ -5,7 +5,9 @@
     "quickstart-agent": "./官方文档/快速开始/index.py:agent",
     "think_in_langgraph": "./官方文档/thinking_in_langgraph/index.py:app",
     "overwrite_langgraph": "./官方文档/use_graph_api/overwrite.py:graph",
-    "persistence": "./官方文档/核心能力/持久化.py:graph"
+    "persistence": "./官方文档/核心能力/持久化.py:graph",
+    "agent_loop": "./官方文档/agent循环/agent循环.py:agent",
+    "multi_agent_supervisor": "./官方文档/多智能体/多智能体.py:supervisor_app"
   },
   "env": ".env",
   "python_version": "3.13"
