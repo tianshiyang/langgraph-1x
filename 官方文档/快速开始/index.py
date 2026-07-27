@@ -2,12 +2,14 @@ import operator
 from typing import Literal
 
 from langchain_core.messages import AnyMessage, SystemMessage, ToolMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.constants import END, START
 from langgraph.graph import StateGraph
 from typing_extensions import TypedDict, Annotated
 from langchain_core.tools import tool
 
 from provider import glm_model
+from provider.langfuse import langfuse_handler
 
 
 @tool
@@ -127,6 +129,9 @@ if __name__ == "__main__":
 
     display(Image(agent.get_graph(xray=True).draw_mermaid_png()))
 
-    messages = agent.invoke({"messages": [HumanMessage(content="Add 3 and 4.")]})
+    messages = agent.invoke(
+        {"messages": [HumanMessage(content="Add 3 and 4.")]},
+        config=RunnableConfig(callbacks=[langfuse_handler]),
+    )
     for m in messages["messages"]:
         m.pretty_print()
