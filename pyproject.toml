@@ -3,11 +3,35 @@ name = "langgraph-1x"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    # ── LangChain 生态 ──
     "langchain>=1.3",
-    "langchain-anthropic>=1.4",
     "langchain-core>=1.4",
+    "langchain-community>=0.4",  # DashScopeEmbeddings
+    "langchain-anthropic>=1.4",  # init_chat_model 的 model_provider="anthropic" 所需
+    # ── LangGraph 生态 ──
     "langgraph>=1.2",
-    "langgraph-cli[inmem]>=0.4",
+    "langgraph-cli[inmem]>=0.4",  # langgraph dev 本地开发服务器
+    "langgraph-supervisor>=0.0.31",  # 多智能体 supervisor（create_supervisor）
+    "langgraph-checkpoint-postgres>=3.1",  # PostgresSaver / PostgresStore 持久化
+    "langmem>=0.0.30",  # 记忆管理（SummarizationNode 等）
+    # ── 可观测性 ──
+    "langfuse>=4.14",  # 链路追踪与评估
+    # ── 基础设施 ──
+    "python-dotenv>=1.2",  # 加载 .env
+    "pydantic>=2.13",
+    "sqlalchemy>=2.0",  # 业务库 ORM（电商客服中台）
+    "psycopg[binary]>=3.3",  # Postgres 驱动（LangGraph + SQLAlchemy 共用）
+    "dashscope>=1.25",  # 阿里 DashScope（DashScopeEmbeddings 依赖）
     "socksio>=1.0",  # httpx 走 SOCKS 代理(VPN)所需，否则调用模型报 ImportError
     "typing-extensions>=4.15",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15",  # 代码格式化与 lint
+    "ipython>=9.14",  # 增强交互式 REPL
+    "black>=26.5",  # 代码格式化
+]
+
+[tool.uv]
+package = false  # 当前为脚本集合（应用），无需把自身构建为可安装包
