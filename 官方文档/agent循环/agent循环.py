@@ -79,18 +79,18 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 load_dotenv(PROJECT_ROOT / ".env")
 
-from langchain.agents import create_agent  # noqa: E402  ⭐️ V1 正确入口
-from langchain_core.messages import (  # noqa: E402
+from langchain.agents import create_agent
+from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
     ToolMessage,
 )
-from langchain_core.tools import tool  # noqa: E402
-from langgraph.errors import GraphRecursionError  # noqa: E402
-from pydantic import BaseModel, Field  # noqa: E402
+from langchain_core.tools import tool
+from langgraph.errors import GraphRecursionError
+from pydantic import BaseModel, Field
 
-from provider import glm_model  # noqa: E402  本项目封装的智谱 GLM
-from provider import ecommerce  # noqa: E402  电商业务库（真实 Postgres）
+from provider import glm_model  # 本项目封装的智谱 GLM
+from provider import ecommerce  # 电商业务库（真实 Postgres）
 
 
 def banner(title: str):
