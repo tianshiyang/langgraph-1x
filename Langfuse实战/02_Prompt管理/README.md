@@ -138,121 +138,365 @@ python "Langfuse实战/02_Prompt管理/s7_prompt关联trace.py"   # 依赖 s5 �
 
 ## 附录 · API 速查表（完整签名 + 逐参数说明）
 
-> 签名取自已安装的 **Langfuse SDK `4.14.3`** 源码。✅ 必填 · ⚪ 可选。
+> 以下签名取自已安装的 **Langfuse SDK `4.14.3`** 源码，按本章脚本用到顺序排列。
+> 标记：✅ 必填 · ⚪ 可选（带默认值）。所有带 `*,` 的参数都必须以关键字传入。
 
-### A. `create_prompt(...)` —— 创建 Prompt / 新增一个版本
+### A. 客户端鉴权、上报与当前 Trace
+
+#### `langfuse.auth_check()` —— 阻塞式校验当前鉴权配置
+
+```python
+langfuse.auth_check() -> bool
+```
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| — | — | — | — | 无参数；同步发起 HTTP 请求，鉴权有效返回 `True`，否则返回 `False` |
+
+> 本章三个短脚本都在启动时调用它以便快速失败。它会产生网络请求，不要放在每次业务调用的热路径上。
+
+#### `langfuse.flush()` —— 立即上报客户端缓冲区中的数据
+
+```python
+langfuse.flush() -> None
+```
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| — | — | — | — | 无参数；阻塞至当前缓冲区中的 span、score、event 等数据发送完毕 |
+
+> 短脚本退出前应调用 `flush()`，避免进程结束时缓冲数据尚未发出。它保证数据送达 API，但服务端查询界面仍可能因异步处理而稍后才显示。
+
+#### `langfuse.get_current_trace_id()` —— 读取当前活动上下文的 Trace ID
+
+```python
+langfuse.get_current_trace_id() -> str | None
+```
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| — | — | — | — | 无参数；活动观测上下文内返回 Trace ID，没有活动上下文时返回 `None` |
+
+> 必须在 `@observe` 函数体内或 `with start_as_current_observation(...)` 块内读取。本章 `s7` 在外层 `@observe` 尚未结束时读取，因此能够返回该次调用的 Trace ID。
+
+---
+
+### B. `create_prompt(...)` —— 创建 Prompt 或为同名 Prompt 新增版本
+
 ```python
 langfuse.create_prompt(
     *,
-    name: str,                                                 # ✅ Prompt 名（同名即同一条，新增版本）
-    prompt: str | list,                                        # ✅ text→字符串；chat→消息列表
-    labels: list[str] = [],                                    # 标签，含 "production" 即线上默认
-    tags: list[str] | None = None,                             # 作用于该 Prompt 所有版本
-    type: "text" | "chat" = "text",
-    config: Any | None = None,                                 # 额外结构化数据（任意 JSON）
-    commit_message: str | None = None,                         # 变更说明
-) -> PromptClient
+    name: str,
+    prompt: str | list[ChatMessageDict | ChatMessagePlaceholder],
+    labels: list[str] = [],
+    tags: list[str] | None = None,
+    type: "chat" | "text" | None = "text",
+    config: Any | None = None,
+    commit_message: str | None = None,
+) -> TextPromptClient | ChatPromptClient
 ```
-| 参数 | 说明 |
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `name` | str | ✅ | — | Prompt 名；同名再次创建会新增一个不可变版本，而不是覆盖旧版本 |
+| `prompt` | str \| list[ChatMessageDict \| ChatMessagePlaceholder] | ✅ | — | `text` 使用字符串；`chat` 使用普通消息与消息占位符组成的列表 |
+| `labels` | list[str] | ⚪ | `[]` | 为新版本绑定的标签；标签可使用任意自定义字符串 |
+| `tags` | list[str] \| None | ⚪ | None | Prompt 级标签，用于分类和筛选；与指向具体版本的 label 不同 |
+| `type` | `"chat"` \| `"text"` \| None | ⚪ | `"text"` | Prompt 内容类型 |
+| `config` | Any \| None | ⚪ | None | 随 Prompt 保存的额外结构化配置，例如模型参数 |
+| `commit_message` | str \| None | ⚪ | None | 当前版本的变更说明，便于审计与回溯 |
+
+`type` 枚举：
+
+| 值 | 含义 |
 | --- | --- |
-| `name` | ✅ Prompt 唯一名；再次 `create_prompt` 同名 = 新增一个版本（v1→v2…） |
-| `prompt` | ✅ `type="text"` 时是含 `{{变量}}` 的字符串；`type="chat"` 时是消息列表 `[{role,content}, ...]`，历史占位符写成 `{"type":"placeholder","name":"history"}` |
-| `labels` | 标签列表，`["production"]` = 线上默认；`["staging"]` = 灰度 |
-| `tags` | 标签（区别于 label：tag 贴在整条 Prompt 上、跨版本） |
-| `type` | `"text"` 或 `"chat"` |
-| `config` | 额外结构化配置（如模型参数、温度），任意可序列化对象 |
-| `commit_message` | 该版本的变更说明，便于回溯 |
+| `"text"` | 文本 Prompt；`prompt` 为字符串，`compile()` 返回字符串 |
+| `"chat"` | 对话 Prompt；`prompt` 为消息列表，`compile()` 返回消息序列 |
+
+> `labels` **不是** `production` / `staging` 固定枚举，可以使用任意业务字符串。只有 `production` 具有“不指定 `version` 和 `label` 时默认拉取”的 SDK 语义；`staging` 只是本教程采用的灰度命名约定。
+>
+> `labels=[]` 是 SDK `4.14.3` 的真实签名默认值。调用时不要在外部持有并修改这个默认列表。
 
 ---
 
-### B. `get_prompt(...)` —— 拉取 Prompt（默认取 production）
+### C. `get_prompt(...)` —— 按名称、版本或标签拉取 Prompt
+
 ```python
 prompt = langfuse.get_prompt(
-    name: str,                                                 # ✅ Prompt 名
+    name: str,
     *,
     version: int | None = None,
     label: str | None = None,
-    type: "text" | "chat" = "text",
+    type: "chat" | "text" = "text",
     cache_ttl_seconds: int | None = None,
-    fallback: str | list | None = None,
+    fallback: list[ChatMessageDict] | str | None = None,
     max_retries: int | None = None,
     fetch_timeout_seconds: int | None = None,
-) -> PromptClient      # 实际返回 TextPromptClient 或 ChatPromptClient
+) -> TextPromptClient | ChatPromptClient
 ```
+
 | 参数 | 类型 | 必填 | 默认 | 说明 |
 | --- | --- | --- | --- | --- |
-| `name` | str | ✅ | — | Prompt 名 |
-| `version` | int | ⚪ | None | 按版本号拉取；与 `label` **二选一** |
-| `label` | str | ⚪ | None | 按标签拉取；都不传则取 `production` |
-| `type` | str | ⚪ | `"text"` | 决定返回 text/chat 两类客户端 |
-| `cache_ttl_seconds` | int | ⚪ | `60` | 本地缓存秒数；设 `0` 关闭缓存 |
-| `fallback` | str/list | ⚪ | None | 拉取失败时的兜底内容（首次无缓存时尤其重要） |
-| `max_retries` | int | ⚪ | `2` | 网络/API 失败重试次数，**上限 4**，指数退避（最长 10s） |
-| `fetch_timeout_seconds` | int | ⚪ | `5` | 拉取超时（秒） |
+| `name` | str | ✅ | — | 要拉取的 Prompt 名；这是唯一一个位置参数 |
+| `version` | int \| None | ⚪ | None | 指定不可变版本号；通常与 `label` 二选一 |
+| `label` | str \| None | ⚪ | None | 指定任意自定义标签；`version`、`label` 都不传时按 `production` 拉取 |
+| `type` | `"chat"` \| `"text"` | ⚪ | `"text"` | 声明要拉取的 Prompt 类型，并决定客户端与 fallback 的内容形态 |
+| `cache_ttl_seconds` | int \| None | ⚪ | None | `None` 使用 SDK 默认 TTL 60 秒；`0` 禁用缓存；正整数设置自定义缓存秒数 |
+| `fallback` | list[ChatMessageDict] \| str \| None | ⚪ | None | 拉取失败时的兜底内容：text 传 `str`，chat 传消息字典列表 |
+| `max_retries` | int \| None | ⚪ | None | 覆盖客户端默认的最大重试次数 |
+| `fetch_timeout_seconds` | int \| None | ⚪ | None | 覆盖客户端默认的单次拉取超时秒数 |
 
-> 缓存语义：命中缓存零网络；过期后**后台异步刷新**不阻塞当前请求；刷新失败且有过期缓存则返回过期版（降级不中断）。
+`type` 枚举：
 
----
-
-### C. PromptClient 对象 —— 属性与方法
-
-`get_prompt` / `create_prompt` 返回的对象（`TextPromptClient` 或 `ChatPromptClient`）。
-
-**属性**
-| 属性 | 类型 | 说明 |
+| 值 | 返回类型 | `fallback` 类型 |
 | --- | --- | --- |
-| `.name` | str | Prompt 名 |
-| `.version` | int | 版本号（v1=1, v2=2…；兜底返回时为 0） |
-| `.labels` | list[str] | 该版本所带标签 |
-| `.tags` | list[str] | 该 Prompt 的标签 |
-| `.config` | dict | 结构化配置 |
-| `.commit_message` | str \| None | 该版本变更说明 |
-| `.variables` | list[str] | 模板里的变量名列表（自动解析 `{{xxx}}`，**只读 property**） |
-| `.is_fallback` | bool | 是否为兜底返回的 Prompt |
+| `"text"` | `TextPromptClient` | `str` |
+| `"chat"` | `ChatPromptClient` | `list[ChatMessageDict]` |
 
-**方法**
+`cache_ttl_seconds` 取值语义：
+
+| 值 | 含义 |
+| --- | --- |
+| `None` | 使用 SDK 默认 TTL，即 60 秒 |
+| `0` | 禁用本地 Prompt 缓存 |
+| 正整数 | 使用指定秒数作为缓存 TTL |
+
+> 签名默认值确实是 `None`，但其运行语义是“采用默认 TTL 60 秒”，两者不矛盾。命中有效缓存时不发网络请求；使用 fallback 创建的 Prompt，其 `version` 为 `0`。
+
+---
+
+### D. PromptClient 编译方法与关键属性
+
+#### `TextPromptClient.compile(**kwargs)` —— 填充文本模板变量并返回字符串
+
 ```python
-# text → 返回字符串；chat → 返回消息字典列表（含注入的历史）
-prompt.compile(**kwargs)
-
-# 转成 LangChain 兼容的字符串/消息（{{var}}→{var}），用于 ChatPromptTemplate
-prompt.get_langchain_prompt(**kwargs)
+TextPromptClient.compile(**kwargs: str | Any) -> str
 ```
-| 方法 | 返回 | 说明 |
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `**kwargs` | str \| Any | 由模板决定 | — | key 对应模板中的 `{{变量名}}`，value 是要填入的运行时值 |
+
+#### `ChatPromptClient.compile(**kwargs)` —— 填充对话模板并展开消息占位符
+
+```python
+ChatPromptClient.compile(**kwargs: str | Any) -> Sequence[ChatMessageDict]
+```
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `**kwargs` | str \| Any | 由模板决定 | — | key 可对应 `{{变量名}}`，也可对应 `{"type": "placeholder", "name": "..."}` 的 `name`；消息占位符传消息列表 |
+
+`kwargs` 的 key **没有固定枚举**，完全由当前 Prompt 内容动态决定：
+
+| 来源 | 示例 key | 传值示例 |
 | --- | --- | --- |
-| `compile(**变量)` | `str`（text）/ `list[dict]`（chat） | 用关键字参数填充 `{{变量}}`；chat 的 `history=` 注入到同名 `placeholder` |
-| `get_langchain_prompt(**变量)` | `str` | 把 mustache 双花括号转成 LangChain 单花括号；可先预填部分变量 |
+| `{{变量}}` | `brand`、`tone`、`question` | `brand="Acme 商城"` |
+| chat placeholder 的 `name` | `history` | `history=[{"role": "user", "content": "你好"}]` |
+
+> Text Prompt 不存在消息占位符；Chat Prompt 才能通过 placeholder 注入一段运行时消息。缺少模板要求的 key 时不能得到完整编译结果，多传的 key 也不应当作固定 API 参数理解。
+
+#### `prompt.version` / `prompt.variables` —— 查看版本与模板变量
+
+```python
+prompt.version: int
+prompt.variables: list[str]
+```
+
+| 属性 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `prompt.version` | int | — | 服务端版本；fallback 为 `0` | 当前 Prompt 的不可变版本号 |
+| `prompt.variables` | list[str] | — | `[]`（无模板变量时） | 从内容中的 `{{变量}}` 解析出的变量名列表 |
+
+> Chat Prompt 的 `variables` 会扫描各消息内容里的 `{{变量}}`，但**不会**把消息占位符的 `name` 计入。例如本章客服模板的结果是 `brand`、`tone`、`question`，不包含 `history`；`history` 仍须在 `compile()` 时按 placeholder 名传入。
 
 ---
 
-### D. chat 消息的两种写法（创建时）
+### E. `@observe(...)` —— 给函数自动创建观测节点
 
-普通消息：
 ```python
-{"role": "system", "content": "你是{{brand}}客服"}      # role: system/user/assistant/...
+from langfuse import observe
+
+observe(
+    func=None,
+    *,
+    name=None,
+    as_type=None,
+    capture_input=None,
+    capture_output=None,
+    transform_to_string=None,
+)
 ```
-历史占位符消息（compile 时注入一段对话）：
-```python
-{"type": "placeholder", "name": "history"}              # compile(history=[{"role":..,"content":..}, ...])
-```
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `func` | Callable \| None | ⚪ | None | 被装饰函数；支持直接写 `@observe`，通常不手工传入 |
+| `name` | str \| None | ⚪ | None | 观测名称；`None` 时使用函数名 |
+| `as_type` | str \| None | ⚪ | None | 观测类型；`None` 按 `span` 处理，九种取值见下表 |
+| `capture_input` | bool \| None | ⚪ | None | 是否记录函数入参；`None` 使用 SDK 默认行为，默认捕获，并受 `LANGFUSE_OBSERVE_DECORATOR_IO_CAPTURE_ENABLED` 控制 |
+| `capture_output` | bool \| None | ⚪ | None | 是否记录函数返回值；`None` 使用 SDK 默认行为，默认捕获 |
+| `transform_to_string` | Callable \| None | ⚪ | None | 生成器函数专用：把产生的片段转换并汇总为可记录的输出字符串 |
+
+`as_type` 九种枚举：
+
+| 值 | 含义 | 典型场景 |
+| --- | --- | --- |
+| `"span"` | 通用工作单元，也是默认类型 | 格式化、普通业务逻辑 |
+| `"generation"` | 大语言模型生成 | 对话或文本补全调用 |
+| `"embedding"` | 嵌入模型调用 | 文本向量化 |
+| `"agent"` | 可自主决策的执行体 | ReAct Agent、动态 LangGraph |
+| `"tool"` | 外部工具调用 | 搜索、数据库、业务 API |
+| `"chain"` | 固定编排流程 | LCEL Chain、固定 RAG 流程 |
+| `"retriever"` | 检索步骤 | 向量检索、关键词检索 |
+| `"evaluator"` | 评估步骤 | 规则评分、LLM-as-judge 外层 |
+| `"guardrail"` | 安全或合规护栏 | PII 脱敏、越狱检测 |
+
+> `capture_input=False` / `capture_output=False` 可对单个装饰器显式关闭采集；传 `None` 不是“不采集”，而是采用 SDK 默认行为。`@observe` 与 `@observe(...)` 两种形式都受 `func` 参数支持。
 
 ---
 
-### E. 把 Prompt 版本关联到 Trace（按版本看效果）
-
-两种等价写法（任选其一）：
+### F. `start_as_current_observation(...)` —— 手工创建当前观测上下文
 
 ```python
-# ① 创建 generation 时传入
 with langfuse.start_as_current_observation(
-    as_type="generation", name="glm-answer", model="glm-4",
-    input=prompt.compile(content=raw),
-    prompt=prompt,          # ★ 关联
-) as gen: ...
-
-# ② 在已有 generation 上下文里补关联
-langfuse.update_current_generation(prompt=prompt)
+    *,
+    trace_context=None,
+    name,
+    as_type="span",
+    input=None,
+    output=None,
+    metadata=None,
+    version=None,
+    level=None,
+    status_message=None,
+    completion_start_time=None,
+    model=None,
+    model_parameters=None,
+    usage_details=None,
+    cost_details=None,
+    prompt=None,
+    end_on_exit=None,
+) as observation:
+    ...
 ```
 
-关联后，UI 的 **Prompts → 某 Prompt → Metrics** 能看到「该版本的调用量 / 延迟 / 关联评分」。
-> LangChain 场景的关联（用 `get_langchain_prompt()` + `metadata={"langfuse_prompt": lf_prompt}`）见正文第 3 节。
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `trace_context` | TraceContext \| None | ⚪ | None | 续接已有 Trace 或指定父节点，例如传入 `trace_id` / `parent_span_id` |
+| `name` | str | ✅ | — | 观测节点名称 |
+| `as_type` | str | ⚪ | `"span"` | 观测类型；九种枚举与 E 节完全相同 |
+| `input` | Any \| None | ⚪ | None | 观测输入 |
+| `output` | Any \| None | ⚪ | None | 创建时已知的观测输出；也可稍后通过对象 `update()` 补充 |
+| `metadata` | Any \| None | ⚪ | None | 自定义元数据 |
+| `version` | str \| None | ⚪ | None | 应用、组件或业务逻辑版本 |
+| `level` | str \| None | ⚪ | None | 日志级别；四种枚举见下表 |
+| `status_message` | str \| None | ⚪ | None | 状态补充说明 |
+| `completion_start_time` | datetime \| None | ⚪ | None | 首个模型输出开始时间，用于计算首 token 延迟 |
+| `model` | str \| None | ⚪ | None | 模型名称，用于模型维度聚合与成本计算 |
+| `model_parameters` | dict \| None | ⚪ | None | 模型调用参数，例如 temperature、max_tokens |
+| `usage_details` | dict[str, int] \| None | ⚪ | None | token 用量明细 |
+| `cost_details` | dict[str, float] \| None | ⚪ | None | 自定义成本明细 |
+| `prompt` | TextPromptClient \| ChatPromptClient \| None | ⚪ | None | 关联本次模型调用所使用的 Langfuse Prompt 版本 |
+| `end_on_exit` | bool \| None | ⚪ | None | `None` 使用上下文管理器默认行为；通常离开 `with` 时自动结束观测 |
+
+`as_type` 九种枚举：
+
+| 值 | 含义 |
+| --- | --- |
+| `"span"` | 通用工作单元，也是默认类型 |
+| `"generation"` | 大语言模型生成 |
+| `"embedding"` | 嵌入模型调用 |
+| `"agent"` | 可自主决策的执行体 |
+| `"tool"` | 外部工具调用 |
+| `"chain"` | 固定编排流程 |
+| `"retriever"` | 检索步骤 |
+| `"evaluator"` | 评估步骤 |
+| `"guardrail"` | 安全或合规护栏 |
+
+`level` 四种枚举：
+
+| 值 | 含义 |
+| --- | --- |
+| `"DEBUG"` | 调试信息 |
+| `"DEFAULT"` | 默认级别 |
+| `"WARNING"` | 警告 |
+| `"ERROR"` | 错误 |
+
+> `model`、`completion_start_time`、`model_parameters`、`usage_details`、`cost_details`、`prompt` 这些模型调用字段仅对 `generation` / `embedding` 类型有意义，不应把 token 或成本信息塞到普通 span、tool、retriever 等外层节点。
+
+---
+
+### G. `generation.update(...)` —— 补写当前 Generation 对象的输出与模型用量
+
+```python
+generation.update(
+    *,
+    name=None,
+    input=None,
+    output=None,
+    metadata=None,
+    version=None,
+    level=None,
+    status_message=None,
+    completion_start_time=None,
+    model=None,
+    model_parameters=None,
+    usage_details=None,
+    cost_details=None,
+    prompt=None,
+    **kwargs,
+) -> LangfuseObservationWrapper
+```
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `name` | str \| None | ⚪ | None | 更新观测名称 |
+| `input` | Any \| None | ⚪ | None | 更新模型输入 |
+| `output` | Any \| None | ⚪ | None | 更新模型输出；本章 `s7` 在模型返回后写入回答 |
+| `metadata` | Any \| None | ⚪ | None | 更新自定义元数据 |
+| `version` | str \| None | ⚪ | None | 更新应用或组件版本 |
+| `level` | str \| None | ⚪ | None | 更新日志级别；枚举为 `DEBUG`、`DEFAULT`、`WARNING`、`ERROR` |
+| `status_message` | str \| None | ⚪ | None | 更新状态说明 |
+| `completion_start_time` | datetime \| None | ⚪ | None | 更新首个模型输出开始时间 |
+| `model` | str \| None | ⚪ | None | 更新模型名称 |
+| `model_parameters` | dict \| None | ⚪ | None | 更新模型调用参数 |
+| `usage_details` | dict[str, int] \| None | ⚪ | None | 更新 token 用量；值必须是整数 |
+| `cost_details` | dict[str, float] \| None | ⚪ | None | 更新自定义成本明细 |
+| `prompt` | TextPromptClient \| ChatPromptClient \| None | ⚪ | None | 补充或更新关联的 Prompt 版本 |
+| `**kwargs` | Any | ⚪ | — | SDK 兼容扩展关键字；常规代码优先使用上面的显式字段 |
+
+本教程的 `usage_details` 键约定：
+
+| key | 类型 | 含义 |
+| --- | --- | --- |
+| `"input"` | int | 输入 token 数 |
+| `"output"` | int | 输出 token 数 |
+| `"total"` | int | 总 token 数 |
+
+> `usage_details` 的正式类型是 `dict[str, int]`；字典允许 SDK 支持的其他用量键，本教程脚本使用 `input` / `output` / `total`。
+>
+> 本章脚本持有 `with ... as generation` 返回的对象，因此应调用 `generation.update(...)`。`langfuse.update_current_generation(...) -> None` 是“不持有对象引用时，更新当前活动 generation”的客户端方法，使用场景不同；它不是本章 `s7` 的实际写法，也没有 `generation.update()` 的返回对象与 `**kwargs`。
+
+---
+
+### H. Prompt 与 Trace 关联的完整调用链
+
+```python
+prompt = langfuse.get_prompt("tutorial-周报助手", label="production")
+compiled = prompt.compile(content=raw)
+
+with langfuse.start_as_current_observation(
+    name="glm-answer",
+    as_type="generation",
+    model="glm-4",
+    input=compiled,
+    prompt=prompt,
+) as generation:
+    response = glm_model.invoke([HumanMessage(compiled)])
+    generation.update(
+        output=response.content,
+        usage_details={"input": 120, "output": 80, "total": 200},
+    )
+```
+
+关联后，UI 的 **Prompts → 某 Prompt → Metrics** 可按具体版本查看调用量、延迟和关联评分。LangChain 场景使用 `get_langchain_prompt()` 与 `metadata={"langfuse_prompt": lf_prompt}` 的方式见正文第 3 节。

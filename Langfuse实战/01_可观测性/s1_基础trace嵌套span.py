@@ -7,6 +7,11 @@
   1) @observe 装饰器      —— 给普通 Python 函数自动埋点（最省事）
   2) start_as_current_observation 上下文管理器 —— 手工控制 span / generation（最灵活）
 
+同时演示 3 种观测类型，对照本阶段 README 附录 I：
+  - retrieve-docs → retriever （检索：从知识库取回文档）
+  - build-prompt  → span      （通用步骤：拼 prompt）
+  - glm-answer    → generation（模型调用：可记 model / token / 成本）
+
 运行：
     python "Langfuse实战/01_可观测性/s1_基础trace嵌套span.py"
 运行后去 Langfuse UI 的 Tracing 页面查看这棵树。
@@ -27,7 +32,9 @@ from langfuse import observe  # noqa: E402
 
 
 # 模拟从知识库检索资料
-@observe(name="retrieve-docs")
+# 标成 retriever 类型：这一步的语义是「从知识库取回相关文档」，
+# 用 retriever 而非默认 span，UI 才能把它当检索环节单独分析（召回、延迟）。
+@observe(name="retrieve-docs", as_type="retriever")
 def retrieve_docs(query: str) -> list[str]:
     # 真实场景这里会查向量库；这里用假数据代替
     return [
@@ -37,6 +44,7 @@ def retrieve_docs(query: str) -> list[str]:
 
 
 # 模拟把检索结果拼进 prompt
+# 纯字符串拼接，无特殊语义，用默认 span 即可
 @observe(name="build-prompt")
 def build_prompt(query: str, docs: list[str]) -> str:
     context = "\n".join(docs)
