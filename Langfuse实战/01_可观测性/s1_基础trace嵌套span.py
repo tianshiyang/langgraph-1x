@@ -21,14 +21,14 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from Langfuse实战._bootstrap import langfuse, glm_model
-
-from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
+from langchain_core.messages import HumanMessage, SystemMessage
 
 # ------------------------------------------------------------
 # 第 1 层：检索（用 @observe 装饰器，自动记录入参与返回值）
 # ------------------------------------------------------------
-from langfuse import observe  # noqa: E402
+from langfuse import observe
+
+from Langfuse实战._bootstrap import glm_model, langfuse
 
 
 # 模拟从知识库检索资料
