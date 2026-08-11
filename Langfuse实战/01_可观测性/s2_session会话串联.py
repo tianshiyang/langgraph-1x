@@ -1,3 +1,14 @@
+import pathlib
+import sys
+
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langfuse import observe, propagate_attributes
+from langfuse.langchain import CallbackHandler
+
+from Langfuse实战._bootstrap import glm_model, langfuse
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
 """
 场景 2 · Session 会话串联
 ============================================================
@@ -12,16 +23,6 @@
     python "Langfuse实战/01_可观测性/s2_session会话串联.py"
 运行后去 UI 的 Sessions 页面，找到本次 session。
 """
-
-import pathlib
-import sys
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from _bootstrap import glm_model, langfuse  # noqa: E402
-
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage  # noqa: E402
-from langfuse import observe, propagate_attributes  # noqa: E402
-from langfuse.langchain import CallbackHandler  # noqa: E402
 
 # 每轮对话都用这个回调，把 LangChain 的调用自动上报为 generation
 langfuse_handler = CallbackHandler()

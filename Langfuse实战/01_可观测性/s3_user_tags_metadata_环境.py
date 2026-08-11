@@ -20,15 +20,16 @@ import os
 import pathlib
 import sys
 
+from langchain_core.messages import HumanMessage
+from langfuse import observe, propagate_attributes
+from langfuse.langchain import CallbackHandler
+
+from Langfuse实战._bootstrap import glm_model, langfuse
+
 # environment 必须在 get_client() 之前设置好，这里演示用代码兜底（正式建议写进 .env）
 os.environ.setdefault("LANGFUSE_TRACING_ENVIRONMENT", "development")
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from _bootstrap import glm_model, langfuse  # noqa: E402
-
-from langchain_core.messages import HumanMessage  # noqa: E402
-from langfuse import observe, propagate_attributes  # noqa: E402
-from langfuse.langchain import CallbackHandler  # noqa: E402
 
 langfuse_handler = CallbackHandler()
 
