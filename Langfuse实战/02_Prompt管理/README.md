@@ -16,6 +16,8 @@
 - **版本(version)**：每次 `create_prompt` 或在 UI 保存 = 一个新版本（v1、v2、v3…），只增不改。
 - **标签(label)**：像 Git 分支指针，`production` / `staging` 各指向某一个版本。改标签指向 = 改线上行为，**代码不动**。
 
+> ⚠️ **别把 label 当环境**：`label="production"` 只是「本项目内当前线上用哪一版」的**版本指针**，跟「生产环境 / 测试环境」没关系——只是恰好都叫 production 这个词。真正的环境隔离是**项目级别**的事，见下方第 5 节「环境隔离」。
+
 ## 1. 两种 Prompt 类型
 
 | 类型 | 内容形态 | 适用 |
@@ -109,30 +111,91 @@ lc_prompt = ChatPromptTemplate.from_messages(
 
 ---
 
-## 5. 本阶段脚本与动手清单
+## 5. 环境隔离：label ≠ 环境，多项目才是（方案 2）
+
+很多人第一次看到 `label="production"` 会以为它就是「生产环境」。**不是**。label 是「本项目内当前线上用哪一版」的版本指针；环境隔离是**项目级别**的另一件事。Langfuse 官方给出两种环境隔离方案：
+
+| 方案 | 怎么做 | 隔离粒度 | 关键限制 |
+| --- | --- | --- | --- |
+| 方案 1 · 内置 environments | 设 `LANGFUSE_TRACING_ENVIRONMENT=production/staging/...`，同一项目内给 trace 打环境标签 | 只分**数据**（trace/observation/score） | **不隔离 prompt**，prompt 跨环境共享；且**无访问隔离**，谁都能看所有环境 |
+| 方案 2 · 每环境一个独立项目 | dev / staging / production 各建一个 Langfuse 项目，各自独立 key/成员/prompt | **项目级全隔离** | prompt 不自动同步，要用 API / GitHub 集成手动晋升 |
+
+**为什么很多团队（尤其国内）直接用方案 2**：
+
+1. **权限刚需**：生产数据（含用户对话）不能让测试同学、外包看到——方案 1 做不到隔离，只能拆项目。
+2. **prompt 也要隔离**：方案 1 连 prompt 都跨环境共享，一旦想「测试环境随便改 prompt、不影响生产」，就**必须**上独立项目。
+
+### 方案 2 的工作流
+
+```
+staging 项目里改 prompt / 验证效果
+        ↓  验证通过后，用 Prompt API 或 GitHub 集成晋升
+production 项目里落一份新版本 + 打上 production 标签
+        ↓
+production 线上代码永远只写 get_prompt(name, label="production")
+```
+
+- **隔离靠「项目」**：两个项目各有各的 pk/sk，互不可见。
+- **晋升靠「API/GitHub」**：跨项目搬运 prompt 内容（本节 `s8` 用 Prompt API 演示）。
+- **切版本仍靠「label」**：production 项目**内部**，依旧用 production 标签做灰度/回滚（就是 s5 那套，两者正交、互补）。
+
+### 多项目客户端与晋升（要点）
+
+多项目**不能**用 `get_client()`（它是按默认环境变量的单例），必须用构造函数**显式传每个项目的 key**：
+
+```python
+from langfuse import Langfuse
+
+staging = Langfuse(public_key=STAGING_PK, secret_key=STAGING_SK, host=BASE_URL)
+production = Langfuse(public_key=PROD_PK, secret_key=PROD_SK, host=BASE_URL)
+
+# 跨项目晋升：读源项目 prompt → 原样写入目标项目
+src = staging.get_prompt("tutorial-周报助手-多项目", label="production")
+production.create_prompt(
+    name=src.name,
+    prompt=src.prompt,            # text 是字符串；chat 是消息列表，均可原样回写
+    type="chat" if isinstance(src, ChatPromptClient) else "text",
+    labels=["production"],        # 打到目标项目的线上标签
+    tags=src.tags,
+    config=src.config,
+    commit_message=f"从 staging v{src.version} 晋升",
+)
+```
+
+> 生产里更推荐 [GitHub 集成](https://langfuse.com/docs/prompt-management/features/github-integration)：prompt 存 Git 仓库、走 PR 评审、CI 里推到各项目，天然带版本与审计。API 晋升适合自研脚本或轻量场景。
+
+---
+
+## 6. 本阶段脚本与动手清单
 
 | 脚本 | 学到的东西 |
 | --- | --- |
 | `s5_prompt版本与label灰度.py` | 创建多版本、用 label 控制线上版本、UI 里灰度切换 + 回滚 |
 | `s6_prompt变量与缓存.py` | chat 模板、`{{变量}}`、历史占位符、客户端缓存 |
 | `s7_prompt关联trace.py` | 把 Prompt 版本关联到 generation，按版本分析效果 + Playground |
+| `s8_多项目环境隔离与prompt同步.py` | 方案 2：多项目客户端、跨项目晋升 prompt、label ≠ 环境 |
 
 ### 运行
 ```bash
 python "Langfuse实战/02_Prompt管理/s5_prompt版本与label灰度.py"
 python "Langfuse实战/02_Prompt管理/s6_prompt变量与缓存.py"
 python "Langfuse实战/02_Prompt管理/s7_prompt关联trace.py"   # 依赖 s5 播种的 prompt
+python "Langfuse实战/02_Prompt管理/s8_多项目环境隔离与prompt同步.py"  # 需先在 .env 配两套 project key
 ```
 
-> 注：`s5`/`s6` 内置了「已存在则跳过播种」，可安全重复运行，不会疯狂造版本。
+> 注：`s5`/`s6` 内置了「已存在则跳过播种」，`s8` 内置「内容一致则跳过晋升」，均可安全重复运行，不会疯狂造版本。
+> `s8` 需要 `LANGFUSE_STAGING_*` 与 `LANGFUSE_PROD_*` 两套 key，缺失时会打印配置指引后退出。
 
-## 6. 自检清单
+## 7. 自检清单
 
 - [ ] 在 UI Prompts 看到 `tutorial-周报助手`（≥2 版）和 `tutorial-客服助手`
 - [ ] 在 UI 把 production 从 v1 挪到 v2，重跑 `s5`，production 结果随之改变（代码没动）
 - [ ] 再把 production 挪回 v1，验证「一键回滚」
 - [ ] `s6` 打印出的 compile 结果里，history 两条历史消息被正确注入
 - [ ] `s7` 的 trace 里 generation 显示了关联的 Prompt 版本
+- [ ] `s8` 跑通后，在 **staging 项目**和 **production 项目**里分别看到 `tutorial-周报助手-多项目`
+- [ ] 二次运行 `s8`，看到「内容一致，跳过晋升」，验证幂等
+- [ ] 想清楚：为什么 `s8` 不能用 `get_client()` 而要显式构造两个 `Langfuse` 客户端
 
 ---
 
@@ -500,3 +563,46 @@ with langfuse.start_as_current_observation(
 ```
 
 关联后，UI 的 **Prompts → 某 Prompt → Metrics** 可按具体版本查看调用量、延迟和关联评分。LangChain 场景使用 `get_langchain_prompt()` 与 `metadata={"langfuse_prompt": lf_prompt}` 的方式见正文第 3 节。
+
+---
+
+### I. `Langfuse(...)` —— 显式构造客户端（方案 2 多项目专用）
+
+```python
+from langfuse import Langfuse
+
+client = Langfuse(
+    *,
+    public_key: str | None = None,
+    secret_key: str | None = None,
+    base_url: str | None = None,
+    host: str | None = None,
+    environment: str | None = None,
+    # 以下为进阶追踪选项，本章 s8 未用到：timeout / httpx_client / debug /
+    # tracing_enabled / flush_at / flush_interval / release / sample_rate /
+    # mask / additional_headers / tracer_provider / ... 详见 SDK 源码
+)
+```
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `public_key` | str \| None | ⚪ | None | 项目公钥；不传则回落到环境变量 `LANGFUSE_PUBLIC_KEY`。多项目**必须显式传**，否则各客户端会取到同一套默认 key |
+| `secret_key` | str \| None | ⚪ | None | 项目私钥；不传则回落到 `LANGFUSE_SECRET_KEY`。同上，多项目必须显式传 |
+| `base_url` | str \| None | ⚪ | None | 实例地址；不传按 `LANGFUSE_BASE_URL` → `LANGFUSE_HOST` → `https://cloud.langfuse.com` 顺序回落 |
+| `host` | str \| None | ⚪ | None | `base_url` 的等价别名；本章 `s8` 用 `host=os.getenv("LANGFUSE_BASE_URL")` |
+| `environment` | str \| None | ⚪ | None | 方案 1 的环境标签；不传按 `LANGFUSE_TRACING_ENVIRONMENT` 回落。与方案 2 的多项目隔离**互不影响** |
+
+> **为什么多项目不能用 `get_client()`**：`get_client(*, public_key=None)` 是按 `public_key` 缓存的**单例工厂**，不传 key 时返回默认环境变量对应的那一个客户端。要同时连 staging 与 production 两个项目，必须各自 `Langfuse(public_key=..., secret_key=..., host=...)` 构造独立实例。
+
+#### 跨项目晋升用到的 PromptClient 属性（原样复刻的字段）
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `prompt.name` | str | Prompt 名，晋升时目标项目沿用同名 |
+| `prompt.prompt` | str \| list | text 为字符串；chat 为消息列表（含 placeholder），均可原样传回 `create_prompt` |
+| `prompt.config` | Any | 随 Prompt 保存的结构化配置，一并复刻 |
+| `prompt.tags` | list[str] \| None | Prompt 级标签，一并复刻 |
+| `prompt.commit_message` | str \| None | 源版本变更说明，晋升时可拼进目标 `commit_message` 便于溯源 |
+| `prompt.version` | int | 源项目版本号，仅用于日志/审计，目标项目版本号独立重排 |
+
+> 判断类型：`isinstance(prompt, ChatPromptClient)` 为真则 `type="chat"`，否则 `type="text"`（`from langfuse.model import ChatPromptClient`）。

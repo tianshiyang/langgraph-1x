@@ -19,9 +19,9 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from _bootstrap import glm_model, langfuse  # noqa: E402
+from langchain_core.messages import convert_to_messages
 
-from langchain_core.messages import convert_to_messages  # noqa: E402
+from Langfuse实战._bootstrap import glm_model, langfuse
 
 PROMPT_NAME = "tutorial-客服助手"
 
@@ -40,7 +40,10 @@ def seed_prompt_once() -> None:
         type="chat",
         prompt=[
             # system：用 {{brand}} / {{tone}} 两个变量
-            {"role": "system", "content": "你是「{{brand}}」的在线客服，语气{{tone}}。"},
+            {
+                "role": "system",
+                "content": "你是「{{brand}}」的在线客服，语气{{tone}}。",
+            },
             # 占位符：运行时注入多轮历史消息
             {"type": "placeholder", "name": "history"},
             # 本轮用户问题
@@ -59,7 +62,9 @@ if __name__ == "__main__":
     seed_prompt_once()
 
     # 拉取时开启客户端缓存：60 秒内再次 get_prompt 直接命中本地缓存，不走网络
-    prompt = langfuse.get_prompt(PROMPT_NAME, label="production", type="chat", cache_ttl_seconds=60)
+    prompt = langfuse.get_prompt(
+        PROMPT_NAME, label="production", type="chat", cache_ttl_seconds=60
+    )
     print(f"拉到第 {prompt.version} 版，变量列表：{prompt.variables}")
 
     # 模拟已有两轮历史对话
@@ -85,7 +90,9 @@ if __name__ == "__main__":
     print("\n[客服回答]\n", response.content)
 
     # 演示缓存命中：第二次拉取不会再发网络请求（同一进程内）
-    prompt_again = langfuse.get_prompt(PROMPT_NAME, label="production", type="chat", cache_ttl_seconds=60)
+    prompt_again = langfuse.get_prompt(
+        PROMPT_NAME, label="production", type="chat", cache_ttl_seconds=60
+    )
     print(f"\n第二次拉取命中缓存（版本仍为 {prompt_again.version}），零额外延迟。")
 
     langfuse.flush()

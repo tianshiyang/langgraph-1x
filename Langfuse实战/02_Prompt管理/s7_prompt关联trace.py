@@ -19,10 +19,10 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from _bootstrap import glm_model, langfuse  # noqa: E402
+from langchain_core.messages import HumanMessage
+from langfuse import observe
 
-from langchain_core.messages import HumanMessage  # noqa: E402
-from langfuse import observe  # noqa: E402
+from Langfuse实战._bootstrap import glm_model, langfuse
 
 PROMPT_NAME = "tutorial-周报助手"  # 复用场景 5 播种的 prompt
 
