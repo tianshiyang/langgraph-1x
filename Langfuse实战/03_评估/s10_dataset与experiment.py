@@ -22,10 +22,10 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from _bootstrap import glm_model, langfuse  # noqa: E402
+from langchain_core.messages import HumanMessage, SystemMessage
+from langfuse import Evaluation
 
-from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
-from langfuse import Evaluation  # noqa: E402
+from Langfuse实战._bootstrap import glm_model, langfuse
 
 DATASET_NAME = "tutorial-常识问答"
 
@@ -87,10 +87,7 @@ def conciseness(*, input, output, expected_output, metadata, **kwargs) -> Evalua
 # 运行级评估器：整个数据集的平均正确率
 def avg_correctness(*, item_results, **kwargs) -> Evaluation:
     vals = [
-        e.value
-        for r in item_results
-        for e in r.evaluations
-        if e.name == "correctness"
+        e.value for r in item_results for e in r.evaluations if e.name == "correctness"
     ]
     avg = sum(vals) / len(vals) if vals else 0.0
     return Evaluation(name="avg_correctness", value=avg)
