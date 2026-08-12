@@ -21,18 +21,18 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from _bootstrap import glm_model, langfuse  # noqa: E402
+from langchain_core.messages import HumanMessage, SystemMessage
+from langfuse import observe
+from langfuse.langchain import CallbackHandler
 
-from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
-from langfuse import observe  # noqa: E402
-from langfuse.langchain import CallbackHandler  # noqa: E402
+from Langfuse实战._bootstrap import glm_model, langfuse
 
 langfuse_handler = CallbackHandler()
 
 # 裁判提示词：要求只输出 JSON，便于解析
 JUDGE_SYSTEM = (
     "你是严格的答案质量评审。针对『问题』和『回答』，从相关性与准确性打分。"
-    "只输出 JSON，格式：{\"score\": 0~1 的小数, \"reason\": \"简短中文理由\"}。"
+    '只输出 JSON，格式：{"score": 0~1 的小数, "reason": "简短中文理由"}。'
 )
 
 

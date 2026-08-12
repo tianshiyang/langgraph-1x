@@ -23,11 +23,11 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from _bootstrap import glm_model, langfuse  # noqa: E402
+from langchain_core.messages import HumanMessage
+from langfuse import observe
+from langfuse.langchain import CallbackHandler
 
-from langchain_core.messages import HumanMessage  # noqa: E402
-from langfuse import observe  # noqa: E402
-from langfuse.langchain import CallbackHandler  # noqa: E402
+from Langfuse实战._bootstrap import glm_model, langfuse
 
 langfuse_handler = CallbackHandler()
 
