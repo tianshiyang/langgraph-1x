@@ -25,17 +25,16 @@ import sys
 from typing import Any
 
 # 只做 sys.path + dotenv，不复用 _bootstrap 的单例（本场景要自建带 mask 的 client）
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 _ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_ROOT))
-import dotenv  # noqa: E402
+sys.path.insert(0, str(_ROOT))  # 项目根：使 from provider import ... 按路径运行也生效
+import dotenv
 
 dotenv.load_dotenv(_ROOT / ".env")
 
-from langchain_core.messages import HumanMessage, SystemMessage  # noqa: E402
-from langfuse import Evaluation, Langfuse, observe  # noqa: E402
+from langchain_core.messages import HumanMessage, SystemMessage
+from langfuse import Evaluation, Langfuse, observe
 
-from provider import glm_model  # noqa: E402
+from provider import glm_model
 
 # ============================================================
 # A. PII 脱敏

@@ -30,10 +30,11 @@ import os
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-import _bootstrap  # noqa: F401  仅为副作用：加 sys.path + 加载 .env
 from langfuse import Langfuse
 from langfuse.model import ChatPromptClient
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))  # 项目根：使绝对导入 Langfuse实战.* 生效
+import Langfuse实战._bootstrap  # noqa: F401  仅为副作用：加 sys.path + 加载 .env
 
 PROMPT_NAME = "tutorial-周报助手-多项目"
 

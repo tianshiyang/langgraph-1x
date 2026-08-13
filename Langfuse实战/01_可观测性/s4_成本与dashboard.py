@@ -15,6 +15,7 @@
 运行后去 UI 的 Dashboards / Tracing 观察成本与延迟曲线。
 """
 
+
 import pathlib
 import sys
 
@@ -22,9 +23,8 @@ from langchain_core.messages import HumanMessage
 from langfuse import observe, propagate_attributes
 from langfuse.langchain import CallbackHandler
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))  # 项目根：使绝对导入 Langfuse实战.* 生效
 from Langfuse实战._bootstrap import glm_model, langfuse
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 langfuse_handler = CallbackHandler()
 

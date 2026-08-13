@@ -15,13 +15,14 @@
 运行后去 UI：该 generation 会显示关联的 Prompt 版本；点进 Playground 可继续调。
 """
 
+
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from langchain_core.messages import HumanMessage
 from langfuse import observe
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))  # 项目根：使绝对导入 Langfuse实战.* 生效
 from Langfuse实战._bootstrap import glm_model, langfuse
 
 PROMPT_NAME = "tutorial-周报助手"  # 复用场景 5 播种的 prompt

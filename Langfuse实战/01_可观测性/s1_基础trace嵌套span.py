@@ -17,20 +17,20 @@
 运行后去 Langfuse UI 的 Tracing 页面查看这棵树。
 """
 
+
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from langchain_core.messages import HumanMessage, SystemMessage
+from langfuse._client.observe import observe
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))  # 项目根：使绝对导入 Langfuse实战.* 生效
+from Langfuse实战._bootstrap import glm_model, langfuse
+
 
 # ------------------------------------------------------------
 # 第 1 层：检索（用 @observe 装饰器，自动记录入参与返回值）
 # ------------------------------------------------------------
-from langfuse import observe
-
-from Langfuse实战._bootstrap import glm_model, langfuse
-
-
 # 模拟从知识库检索资料
 # 标成 retriever 类型：这一步的语义是「从知识库取回相关文档」，
 # 用 retriever 而非默认 span，UI 才能把它当检索环节单独分析（召回、延迟）。

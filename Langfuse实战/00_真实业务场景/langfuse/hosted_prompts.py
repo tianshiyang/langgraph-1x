@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import _setup  # noqa: F401  # 副作用：准备 sys.path 与 .env
-
 from langfuse.model import ChatPromptClient
 
 from client import langfuse

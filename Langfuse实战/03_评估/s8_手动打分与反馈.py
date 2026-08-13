@@ -19,14 +19,15 @@
     python "Langfuse实战/03_评估/s8_手动打分与反馈.py"
 """
 
+
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from langchain_core.messages import HumanMessage
 from langfuse import observe
 from langfuse.langchain import CallbackHandler
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))  # 项目根：使绝对导入 Langfuse实战.* 生效
 from Langfuse实战._bootstrap import glm_model, langfuse
 
 langfuse_handler = CallbackHandler()

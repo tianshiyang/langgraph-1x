@@ -1,37 +1,40 @@
 [project]
 name = "langgraph-1x"
 version = "0.1.0"
+description = "LangGraph / Langfuse 学习项目"
 requires-python = ">=3.13"
 dependencies = [
-    # ── LangChain 生态 ──
-    "langchain>=1.3",
-    "langchain-core>=1.4",
-    "langchain-community>=0.4",  # DashScopeEmbeddings
-    "langchain-anthropic>=1.4",  # init_chat_model 的 model_provider="anthropic" 所需
-    # ── LangGraph 生态 ──
-    "langgraph>=1.2",
-    "langgraph-cli[inmem]>=0.4",  # langgraph dev 本地开发服务器
-    "langgraph-supervisor>=0.0.31",  # 多智能体 supervisor（create_supervisor）
-    "langgraph-checkpoint-postgres>=3.1",  # PostgresSaver / PostgresStore 持久化
-    "langmem>=0.0.30",  # 记忆管理（SummarizationNode 等）
-    # ── 可观测性 ──
-    "langfuse>=4.14",  # 链路追踪与评估
-    # ── 基础设施 ──
-    "python-dotenv>=1.2",  # 加载 .env
-    "pydantic>=2.13",
-    "sqlalchemy>=2.0",  # 业务库 ORM（电商客服中台）
-    "psycopg[binary]>=3.3",  # Postgres 驱动（LangGraph + SQLAlchemy 共用）
-    "dashscope>=1.25",  # 阿里 DashScope（DashScopeEmbeddings 依赖）
-    "socksio>=1.0",  # httpx 走 SOCKS 代理(VPN)所需，否则调用模型报 ImportError
-    "typing-extensions>=4.15",
+    "langfuse",
+    "langgraph",
+    "langchain",
+    "langchain-core",
+    "langchain-anthropic",
+    "langchain-openai",
+    "langchain-deepseek",
+    "langchain-community",
+    "python-dotenv",
+    "pydantic",
 ]
 
-[dependency-groups]
-dev = [
-    "ruff>=0.15",  # 代码格式化与 lint
-    "ipython>=9.14",  # 增强交互式 REPL
-    "black>=26.5",  # 代码格式化
-]
-
+# 本仓库是「一堆可独立运行的教学脚本」，不是要对外分发的 Python 包。
+# 告诉 uv 不要构建 / editable 安装本仓库自身，只安装依赖：
+#   - 彻底避免之前 `uv add/remove` 触发的「构建本项目失败」
+#   - uv sync 更快、更稳，也不会再生成只认 provider 的 editable finder
+# 各脚本按文件路径直接运行即可（脚本内自举把项目根加入 sys.path），
+# 因此不再声明 [build-system] / [tool.setuptools]。
 [tool.uv]
-package = false  # 当前为脚本集合（应用），无需把自身构建为可安装包
+package = false
+
+[tool.ruff.lint.isort]
+# 让 ruff 的 import 排序把这些识别为项目内（第一方）模块
+known-first-party = ["provider", "Langfuse实战"]
+
+[tool.pyright]
+# 让 IDE 静态分析也能解析「运行时才加进 sys.path」的目录，消除误报红线：
+#   - "."：项目根，供 from provider import ...、from Langfuse实战._bootstrap import ...
+#   - 00_真实业务场景 的业务层/观测层：供裸导入 prompts / client / pii / _setup 等
+extraPaths = [
+    ".",
+    "Langfuse实战/00_真实业务场景/langchain",
+    "Langfuse实战/00_真实业务场景/langfuse",
+]

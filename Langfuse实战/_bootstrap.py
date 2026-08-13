@@ -22,9 +22,9 @@ if str(_PROJECT_ROOT) not in sys.path:
 # 加载 .env（LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY / LANGFUSE_BASE_URL 等）
 dotenv.load_dotenv(_PROJECT_ROOT / ".env")
 
-from langfuse import get_client  # noqa: E402
+from langfuse import get_client
 
-from provider import glm_model  # noqa: E402
+from provider import glm_model
 
 # 全局单例客户端：读取环境变量完成鉴权
 langfuse = get_client()

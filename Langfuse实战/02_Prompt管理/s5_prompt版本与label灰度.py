@@ -14,12 +14,13 @@
     python "Langfuse实战/02_Prompt管理/s5_prompt版本与label灰度.py"
 """
 
+
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from langchain_core.messages import HumanMessage
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))  # 项目根：使绝对导入 Langfuse实战.* 生效
 from Langfuse实战._bootstrap import glm_model, langfuse
 
 PROMPT_NAME = "tutorial-周报助手"
