@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "LangGraph / Langfuse 学习项目"
 requires-python = ">=3.13"
 dependencies = [
-    "langfuse",
+    "langfuse>=4,<5",
     "langgraph",
     "langchain",
     "langchain-core",
@@ -14,6 +14,8 @@ dependencies = [
     "langchain-community",
     "python-dotenv",
     "pydantic",
+    "pymilvus>=3.0.1",
+    "langgraph-checkpoint-postgres>=3.1.2",
 ]
 
 # 本仓库是「一堆可独立运行的教学脚本」，不是要对外分发的 Python 包。

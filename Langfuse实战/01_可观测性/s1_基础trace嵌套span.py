@@ -22,7 +22,7 @@ import pathlib
 import sys
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langfuse._client.observe import observe
+from langfuse import observe
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))  # 项目根：使绝对导入 Langfuse实战.* 生效
 from Langfuse实战._bootstrap import glm_model, langfuse

@@ -135,7 +135,7 @@ python "Langfuse实战/03_评估/s11_annotation_queue.py"   # 需先在 UI 建�
 
 ## 附录 · API 速查表（完整签名 + 逐参数说明）
 
-> 以下签名取自已安装的 **Langfuse SDK `4.14.3`** 源码，按本章脚本用到顺序排列。
+> 以下签名取自已安装的 **Langfuse SDK `4.14.4`** 源码，按本章脚本用到顺序排列。
 > 标记：✅ 必填 · ⚪ 可选（带默认值）。签名中的 `*` 表示其后的参数只能按关键字传入。
 
 ### A. LangChain 回调与观测上下文
@@ -166,7 +166,7 @@ response = glm_model.invoke(
 )
 ```
 
-> `CallbackHandler` 构造函数在 4.14.3 中**只接受 `public_key` 和 `trace_context`**，不能传 `metadata`、`tags` 或 `session_id`。handler 必须随 `config={"callbacks": [handler]}` 传给调用，否则这次 LangChain 模型调用不会自动产生 Langfuse observation。
+> `CallbackHandler` 构造函数在 4.14.4 中**只接受 `public_key` 和 `trace_context`**，不能传 `metadata`、`tags` 或 `session_id`。handler 必须随 `config={"callbacks": [handler]}` 传给调用，否则这次 LangChain 模型调用不会自动产生 Langfuse observation。
 
 #### `@observe(...)` —— 自动为 Python 函数创建 observation
 
@@ -651,7 +651,7 @@ result = dataset.run_experiment(
 | `max_concurrency` | `int` | ⚪ | `50` | 最大并发任务数；应按模型/API 限流和本机资源调整 |
 | `metadata` | `dict[str, str] \| None` | ⚪ | `None` | 附加到 Dataset Run 及实验 trace 的字符串元数据 |
 
-> `evaluators=[]` 和 `run_evaluators=[]` 是 SDK 4.14.3 的真实签名默认值。实际调用中建议显式传入列表；`max_concurrency=50` 对限流严格的模型可能过高，应主动调低。
+> `evaluators=[]` 和 `run_evaluators=[]` 是 SDK 4.14.4 的真实签名默认值。实际调用中建议显式传入列表；`max_concurrency=50` 对限流严格的模型可能过高，应主动调低。
 
 #### `ExperimentResult.format(...)` —— 将实验结果格式化为可读文本
 

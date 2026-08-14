@@ -15,8 +15,7 @@ from typing import TypedDict
 import _setup  # noqa: F401  # 副作用：准备 sys.path 与 .env
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-from langfuse import observe
-from langfuse._client.propagation import propagate_attributes
+from langfuse import observe, propagate_attributes
 
 import hosted_prompts
 import rag_service

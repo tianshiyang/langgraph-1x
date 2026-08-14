@@ -1,6 +1,6 @@
 # Langfuse 实战学习路线图
 
-> 环境：Langfuse Cloud 美区（`https://us.cloud.langfuse.com`）· Python SDK `4.14.1`（OpenTelemetry 架构）
+> 环境：Langfuse Cloud 美区（`https://us.cloud.langfuse.com`）· Python SDK `4.14.4`（OpenTelemetry 架构）
 > 已跑通：LangChain `CallbackHandler` 回调、`get_prompt()` 拉取远程 Prompt
 > 目标：按下面的场景**挨个动手**，每个场景在对应子目录里写一个可运行的最小脚本，跑完在本文件的「进度」里打勾。
 
