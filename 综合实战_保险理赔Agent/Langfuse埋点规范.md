@@ -75,7 +75,9 @@ with propagate_attributes(
 | `tags` | `claim-review` + 险种 + 路由结果(`auto_pay`/`human_review`/`reject`) | UI 按结果/险种筛 |
 | `metadata` | `{policy_id, risk_level, payable}` | 附加检索维度 |
 
-> 决策完成后可再 `langfuse.update_current_trace(tags=[..., decision.route])`，把最终路由打到 trace 上，方便统计各路由占比。
+> 决策完成后把最终路由打到 trace 上，方便统计各路由占比。v4 已移除 `update_current_trace`，两种等价写法：
+> - **决策前已知**（推荐）：把 `decision.route` 并入外层 `propagate_attributes(tags=["claim-review", product, route])`；
+> - **决策后才能补**：在 decide span 内 `langfuse.update_current_span(metadata={"route": decision.route})`，UI 按该 span 的 metadata 筛选路由。
 
 ---
 
